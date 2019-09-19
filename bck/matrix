@@ -1,0 +1,420 @@
+#!/bin/bash
+
+dims()
+{
+	tempfile="temp$$"
+	countrows=0; #var to store number of rows
+	countcols=0; #var to store number of columns
+	i=0 #for loop counter
+
+	if [ $# -eq 0 ] #input from stdin
+	then
+		cat > $tempfile #dump it to tempfile
+	else 
+		[ $# -ne 1 ] && echo "number of arguments greater than 1" >&2 && exit 5 #if more than one argument throw error and exit
+		
+		[ ! -r $1 ] && echo "argument unreadable" >&2 && exit 5 #if argument is unreadable argument throw error and exit
+	fi
+
+	if [ $# -eq 1 ] #if one argument passed sucessfuly 
+	then
+		tempfile=$1 #name it tempfile
+	fi
+
+	#read total rows 
+	while read row #read each line (rows) from tempfile and dumps it to var row
+	do
+		(( countrows++ )) #keeps track of number of rows - increments count
+	done < $tempfile
+	
+	#count columns 
+	firstline=$(head -n 1 $tempfile) #reads the first line of the matrix
+
+	for i in $firstline #itrates for number of elements (cols) in first line 
+	do
+		(( ++countcols )) #keeps track of number of columns - increemnts count
+	done
+
+	printf "%d %d\n" $countrows $countcols #prints number of rows and colunms to stdout 	
+
+	rm -f $tempfile #remove tempfile
+}
+
+transpose()
+{
+	tempfile="temp$$"
+	transfile="test$$"
+	countcols=0
+	i=0
+
+ 	if [ $# -eq 0 ] #input from stdin
+	then
+		cat > $tempfile #dump it to tempfile
+	else 
+		[ $# -ne 1 ] && echo "number of arguments greater than 1" >&2 && exit 5 #if more than one argument throw error and exit
+		
+		[ ! -r $1 ] && echo "argument unreadable" >&2 && exit 5 #if argument is unreadable argument throw error and exit
+	fi
+
+	if [ $# -eq 1 ] #if one argument passed sucessfuly 
+	then
+		tempfile=$1 #name it tempfile
+	fi
+
+	#count columns 
+	firstline=$(head -n 1 $tempfile) #reads the first line of the matrix
+
+	for i in $firstline #itrates for number of elements (cols) in first line 
+	do
+		(( ++countcols )) #keeps track of number of columns - increemnts count
+	done
+	
+	#transposing matrix 
+	for ((i=1; i<="$countcols"; i++)) #c style for loop to cut out elements and paste them serialy 
+	do
+ 		#cut -f cuts out individual columns while ignoring delimiters and pipes
+		#paste -s take the piped column and pastes them serialy - tansposing 
+		#appends the result to file
+		cut -f "$i" "$tempfile" | paste -s >> "$transfile"		
+	done
+
+	cat "$transfile" #prints out the transposed matrix to stdout
+
+	rm -f "$tempfile" "$transfile" #remove tempfiles
+}
+
+mean()
+{
+	tempfile="temp$$"
+	column="tempcol$$"
+	tempmean="tempmean$$"
+	result="tempresult$$"
+	countrows=0
+	countcols=0
+	sum=0
+
+	if [ $# -eq 0 ] #input from stdin
+	then
+		cat > $tempfile #dump it to tempfile
+	else 
+		[ $# -ne 1 ] && echo "number of arguments greater than 1" >&2 && exit 5 #if more than one argument throw error and exit
+		
+		[ ! -r $1 ] && echo "argument unreadable" >&2 && exit 5 #if argument is unreadable argument throw error and exit
+	fi
+
+	if [ $# -eq 1 ] #if one argument passed sucessfuly 
+	then
+		tempfile=$1 #name it tempfile
+	fi
+		
+	#count total number of rows in matrix to get number of elements in a column
+	while read row #read each line (rows) from tempfile and dumps it to var row
+	do
+		(( countrows++ )) #keeps track of number of rows - increments count
+	done < $tempfile
+	
+	#count columns, thats the total number of columns in the matrix
+	firstline=$(head -n 1 $tempfile) #reads the first line of the matrix
+
+	for i in $firstline #itrates for number of elements (cols) in first line 
+	do
+		(( ++countcols )) #keeps track of number of columns - increemnts count
+	done
+	
+	for ((i=1; i<="$countcols"; i++))
+	do
+		cut -f "$i" "$tempfile" > $column #extract out each column and dump it in a temp file
+		
+		while read element #use read to extract out each element and sum it
+		do
+			sum=$(expr $sum + $element) #sum those elements 
+		done < $column #reading in the extracted
+		
+		#using the rounding formula to calculate mean
+		mean=$(((sum + (countrows/2)*( (sum>0)*2-1)) / countrows))
+		
+		#dumpe mean of each file into a temp file
+		echo -e "$mean" >> "$tempmean"
+		
+		sum=0 #reset sum to 0
+	done
+
+	cut -f 1 "$tempmean" | paste -s >> "$result" #print mean serialy and dump it in a file
+	
+	cat "$result" #print out the result
+
+	rm -f "$tempfile" "$tempmean" "$result" "$column" #remove all temp files
+}
+
+add()
+{
+		tempfile="temp$$"
+		testfile="test$$"
+		row_m1=0
+		row_m2=0
+		col_m1=0
+		col_m2=0
+		cols_m1file="tempcolsm1$$"
+		cols_m2file="tempcolsm2$$"
+		sum=0
+		result="tempresult$$"
+		result_col=0
+		final_result="final$$"
+
+		[ $# -ne 2 ] && echo "number of arguments does not equal 2" >&2 && exit 5 #if total arguments dont equal 2 throw an error and exit
+		
+		( [ ! -r $1 ] || [ ! -r $2 ] ) && echo "argument unreadable" >&2 && exit 5 #if argument are unreadable argument throw error and exit
+	
+		matrix1=$1
+		matrix2=$2
+		
+		#calcualting dimensions of the two matrices:
+
+		#calculate dimensions of first matrix 
+		#count total rows for matrix 1 
+		while read rows_m1 #read each line (rows) from tempfile and dumps it to var row
+		do
+			(( row_m1++ )) #keeps track of number of rows - increments count
+		done < $matrix1
+		
+		#echo -e "$row_m1"
+
+		#count columns 
+		firstline_m1=$(head -n 1 $matrix1) #reads the first line of the matrix
+
+		for i in $firstline_m1 #itrates for number of elements (cols) in first line 
+		do
+			(( ++col_m1 )) #keeps track of number of columns - increemnts count
+		done
+	
+		#echo -e "$col_m1"
+
+
+		#calculate dimensions of second matrix 
+		#count total rows for matrix 2 
+		while read rows_m2 #read each line (rows) from tempfile and dumps it to var row
+		do
+			(( row_m2++ )) #keeps track of number of rows - increments count
+		done < $matrix2
+		
+		#echo -e "$row_m2"
+
+		#count columns 
+		firstline_m2=$(head -n 1 $matrix2) #reads the first line of the matrix
+
+		for i in $firstline_m2 #itrates for number of elements (cols) in first line 
+		do
+			(( ++col_m2 )) #keeps track of number of columns - increemnts count
+		done
+	
+		#echo -e "$col_m2"
+
+		#error check for dimesions
+		#if dimenisions of input matrix do not match i.e number of rows and coloumns in matrix do not match throw an error
+		( [ $row_m1 -ne $row_m2 ] || [  $col_m1 -ne $col_m2 ] ) && echo "dimensions do not match" >&2 && exit 5 
+
+		#matrix addition
+		count=0
+		i=1
+		while [ $i -lt $(( $col_m1 + 1 )) ]
+		do
+			#echo -e "$i"
+			
+			#extrat out coloumns and dump it in temp col file
+			cut -f $i $matrix1 > $cols_m1file
+			cut -f $i $matrix2 > $cols_m2file
+			
+			#matrix addition
+			#add 2 cols togather and sum them
+			while read element1 <&3 && read element2<&4;
+			do
+			#	echo -e "$element1"
+			#	echo -e "$element2"
+				
+				sum=$(expr $element1 + $element2) #add 2 columns elements
+				(( count++ ))
+			#	echo -e "$sum"
+			
+			#	echo -e "$count"	
+
+				#arrange in right order 
+				if [ $count -eq $row_m1 ] 
+				then
+					printf "%d\n" $sum >> $result
+				else
+					printf "%d\t" $sum >> $result
+				fi		
+
+			done 3<$cols_m1file 4<$cols_m2file
+				
+			count=0
+			(( i++ ))
+		done
+	
+		#cat $cols_m2file
+#		echo -e "$count"	
+#		cat "$result"
+
+		#count columns in result matrix
+		firstline_result=$(head -n 1 $result) #reads the first line of the matrix
+
+		for i in $firstline_result #itrates for number of elements (cols) in first line 
+		do
+			(( ++result_col )) #keeps track of number of columns - increemnts count
+		done
+
+		#echo -e "$result_col"
+
+		#transpsoe result matrix 
+		for ((i=1; i<="$result_col"; i++)) #c style for loop to cut out elements and paste them serialy 
+		do
+		#	echo -e "test"
+ 			#cut -f cuts out individual columns while ignoring delimiters and pipes
+			#paste -s take the piped column and pastes them serialy - tansposing 
+			#appends the result to file
+			cut -f "$i" "$result" | paste -s >> $final_result		
+		done
+		
+		cat $final_result #print out the final matrix
+
+		rm -f "$tempfile" "$testfile" "$cols_m1file" "$cols_m2file" "$result" "$final_result" #remove all the tempfiles
+}
+
+
+multiply()
+{
+
+		tempfile="temp$$"
+		testfile="test$$"
+		row_m1=0
+		row_m2=0
+		col_m1=0
+		col_m2=0
+		tr_matrix2="transtemp$$"
+		cols=0
+		cols_tr=0
+		tr_col="tr_col$$"
+		sum=0
+		m_col="m_col$$"
+		result="final_temp$$"	
+	
+		[ $# -ne 2 ] && echo "number of arguments does not equal 2" >&2 && exit 5 #if total arguments dont equal 2 throw an error and exit
+		
+		( [ ! -r $1 ] || [ ! -r $2 ] ) && echo "argument unreadable" >&2 && exit 5 #if argument are unreadable argument throw error and exit
+	
+		matrix1=$1
+		matrix2=$2
+		
+		#calcualting dimensions of the two matrices:
+
+		#calculate dimensions of first matrix 
+		#count total rows for matrix 1 
+		while read rows_m1 #read each line (rows) from tempfile and dumps it to var row
+		do
+			(( row_m1++ )) #keeps track of number of rows - increments count
+		done < $matrix1
+		
+		#echo -e "$row_m1"
+
+		#count columns 
+		firstline_m1=$(head -n 1 $matrix1) #reads the first line of the matrix
+
+		for i in $firstline_m1 #itrates for number of elements (cols) in first line 
+		do
+			(( ++col_m1 )) #keeps track of number of columns - increemnts count
+		done
+	
+		#echo -e "$col_m1"
+
+
+		#calculate dimensions of second matrix 
+		#count total rows for matrix 2 
+		while read rows_m2 #read each line (rows) from tempfile and dumps it to var row
+		do
+			(( row_m2++ )) #keeps track of number of rows - increments count
+		done < $matrix2
+		
+		#echo -e "$row_m2"
+
+		#count columns 
+		firstline_m2=$(head -n 1 $matrix2) #reads the first line of the matrix
+
+		for i in $firstline_m2 #itrates for number of elements (cols) in first line 
+		do
+			(( ++col_m2 )) #keeps track of number of columns - increemnts count
+		done
+	
+		#echo -e "$col_m2"
+
+		#if dimenisions of input matrix do not match i.e number coloumn of first matrix does not match rowss of second matrix throw an error
+		[ $col_m1 -ne $row_m2 ] && echo "dimensions do not match" >&2 && exit 5 
+
+		#transpose matrix2:
+		#count columns in  matrix2
+		firstline=$(head -n 1 $matrix2) #reads the first line of the matrix
+		for i in $firstline #itrates for number of elements (cols) in first line 
+		do
+			(( ++cols )) #keeps track of number of columns - increemnts count
+		done
+
+#		echo -e "$cols"
+		#transpsoe result matrix2 
+		for ((i=1; i<="$cols"; i++)) #c style for loop to cut out elements and paste them serialy 
+		do
+		#	echo -e "test"
+ 			#cut -f cuts out individual columns while ignoring delimiters and pipes
+			#paste -s take the piped column and pastes them serialy - tansposing 
+			#appends the result to file
+			cut -f "$i" "$matrix2" | paste -s >> $tr_matrix2		
+		done
+		
+		#cat $tr_matrix2 #print out the final matrix
+
+		#count number of cols in new matrix 
+		first=$(head -n 1 $tr_matrix2) #reads the first line of the matrix
+		for i in $first #itrates for number of elements (cols) in first line 
+		do
+			(( ++cols_tr )) #keeps track of number of columns - increemnts count
+		done
+
+#		echo -e "$cols_tr"
+		
+		#matrix multiplication nested for loops:
+		#1st loop itrates through coloumns of transposed matrix
+		for((i=1; i<=$cols_tr; i++))
+		do
+			cut -f $i $tr_matrix2 > $tr_col #cut out the coloumns from transposed matrix
+			
+			#2nd loop itrate throgh cols of first matrix
+			#simaltenously add the 2 cols and multiply
+			for((j=1; j<=col_m2; j++ ))
+			do
+				cut -f $j $matrix1 > $m_col  #cut out coloumns from first matrix
+			
+			#add and multiply the tow coloumns togather
+				while read element1 <&3 && read element2 <&4; 	
+				do
+					multiply=$(( $element1*$element2 ))
+					#echo -e "$multiply"
+					sum=$(expr $sum + $multiply)
+				done 3<$tr_col 4<$m_col	
+				
+				#arrange the final matrix 
+				if [ $j -ne $col_m2 ]
+				then
+					printf "%d\t" $sum >> $result
+				else
+					printf "%d\n" $sum >> $result
+				fi
+	
+				sum=0
+			done
+		done
+		
+		cat $result #print out the result
+
+		rm -f "$tempfile" "$testfile" "$tr_matrix2" "$tr_col" "$m_col" "$result"
+}
+
+
+$1 "${@:2}"
